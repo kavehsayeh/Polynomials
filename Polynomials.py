@@ -1,56 +1,137 @@
-class monomial:
-	def __init__(self, coeff, degree):
-		self.degree = degree
-		self.coeff = coeff
+def gcf(a, b):
+	"""
+	Takes two positive integers and returns the largest factor they have in 
+	common. By convention, gcf(a, 0) == a.
+	Uses the fact that if a > b, gcf(a, b) == gcf(b, a % b).
+	"""
+	if b == a or b == 0:
+		return a
+	elif a == 0:
+		return b
+	elif a > b:
+		return gcf(b, a % b)
+	elif b > a:
+		return gcf(a, b % a)
 
-	def __str__(self):
-		if self.coeff == 1:
-			return "x^{}".format(self.degree)
-		elif self.coeff == -1:
-			return "-x^{}".format(self.degree)
+
+def lcm(a, b):
+	"""
+	Takes two positive integers and returns the smallest number that is a 
+	multiple of both. 
+	"""
+	return (a*b) / gcf(a, b)
+
+	
+
+class Fraction:
+	def __init__(self, num, denom=1):
+		if denom == 0:
+			raise ZeroDivisionError
+		elif isinstance(num, int) and isinstance(denom, int):
+			self.num = num
+			self.denom = denom
+			self.__clean()
 		else:
-			return "{}x^{}".format(self.coeff, self.degree)
+			raise TypeError
+
+	def __clean(self):
+		"""Cleanup function. Simplifies the fraction and moves the negative
+		sign to the numerator."""
+		g = gcf(self.num, self.denom)
+		if g != 1:
+			self.num /= g
+			self.denom /= g
+		if self.denom < 0:
+			self.num = -self.num
+			self.denom = -self.denom
+
+	def __str__(a):
+		if denom == 1:
+			return str(a.num)
+		else:
+			return "({}/{})".format(a.num, a.denom)
+
+	def __float__(a):
+		return a.num / a.denom
+
+	def __int__(a):
+		return a.num // a.denom
 
 	def __neg__(a):
-		return monomial(-a.coeff, a.degree)
+		return Fraction(-a.num, a.denom)
 
 	def __add__(a, b):
-		# monomial + monomial case
-		if isinstance(b, monomial): 
-			# if the monomials are of the same degree, add coefficients
-			if a.degree == b.degree:
-				return monomial(a.coeff + b.coeff, a.degree)
-			# otherwise, just return a polynomial made of the monomials
-			else:
-				return polynomial([a, b])
-		# monomial + polynomial case
-		elif isinstance(b, polynomial):
-			# if there is already a term of the same degree, add their coefficients
-			if a.degree in [a.degree for a in b.terms]:
-				newterm = a + b[a.degree] # recursively call monomial + monomial case
-				return polynomial(list(filter(lambda x: x.degree != a.degree, 
-					b.terms)) + [newterm])
-			# otherwise, just add the monomial as another term
-			else:
-				return polynomial(b.terms + [a])
+		return Fraction(a.num*b.denom + a.denom*b.num, a.denom*b.denom)
 
 	def __sub__(a, b):
 		return a + (-b)
 
 	def __mul__(a, b):
-		return monomial(a.coeff * b.coeff, a.degree + b.degree)
+		return Fraction(a.num * b.num, a.denom * b.denom)
+
+	def __truediv__(a, b):
+		return Fraction(a.num * b.denom, a.denom * b.num)
+
+
+
+
+class Monomial:
+	def __init__(self, coeff=1, degree=0):
+		self.degree = degree
+		self.coeff = coeff
+
+	def __str__(a):
+		if a.coeff == 1:
+			return "x^{}".format(a.degree)
+		elif a.coeff == -1:
+			return "-x^{}".format(a.degree)
+		elif a.coeff == 0:
+			return "0"
+		else:
+			return "{}x^{}".format(a.coeff, a.degree)
+
+	def __neg__(a):
+		return Monomial(-a.coeff, a.degree)
+
+	def __add__(a, b):
+		# Monomial + Monomial case
+		if isinstance(b, Monomial): 
+			# if the Monomials are of the same degree, add coefficients
+			if a.degree == b.degree:
+				return Monomial(a.coeff + b.coeff, a.degree)
+			# otherwise, just return a Polynomial made of the Monomials
+			else:
+				return Polynomial([a, b])
+		# Monomial + Polynomial case
+		elif isinstance(b, Polynomial):
+			# if there is already a term of the same degree, add their coefficients
+			if a.degree in [a.degree for a in b.terms]:
+				newterm = a + b[a.degree] # recursively call Monomial + Monomial case
+				return Polynomial(list(filter(lambda x: x.degree != a.degree, 
+					b.terms)) + [newterm])
+			# otherwise, just add the Monomial as another term
+			else:
+				return Polynomial(b.terms + [a])
+
+	def __sub__(a, b):
+		return a + (-b)
+
+	def __mul__(a, b):
+		return Monomial(a.coeff * b.coeff, a.degree + b.degree)
 
 	def eval(self, x):
 		return self.coeff * x**self.degree
 
 
-class polynomial:
+class Polynomial:
 	def __init__(self, terms):
-		self.terms = terms # list of monomials
+		# should usually be initializing Polynomials as a sum of Monomials
+		# using overloaded addition
+		self.terms = terms # list of Monomials
 		self.degree = max(a.degree for a in terms)
-		self.clean()
+		self.__clean()
 
-	def clean(self):
+	def __clean(self):
 		""" 
 		A cleanup helper function.
 		Ensures that the terms are ordered by degree, and that
@@ -60,30 +141,29 @@ class polynomial:
 		self.terms = list(filter(lambda x: x.coeff != 0, self.terms))
 		self.terms.sort(key = lambda x: x.degree, reverse = True)
 
-	def __str__(self):
-		return ' + '.join(str(a) for a in self.terms)
+	# most overloaded operators work by recursing to the Monomial class in 
+	# some way
+	def __str__(a):
+		return ' + '.join(str(term) for term in a.terms)
 
-	def __getitem__(self, degree):
-		if degree in [i.degree for i in self.terms]:
-			return next(x for x in self.terms if x.degree == degree)
+	def __getitem__(a, degree):
+		if degree in [i.degree for i in a.terms]:
+			return next(x for x in a.terms if x.degree == degree)
 		else:
-			#raise IndexError("No term of that degree")
-			return 0
-			# still don't know whether it should throw an error or give
-			# the technically mathematically correct answer
+			return Monomial(0, degree)
 
 	def __neg__(a):
-		return polynomial([-term for term in a.terms])
+		return Polynomial([-term for term in a.terms])
 
 	def __add__(a, b):
-		# polynomial + monomial case
-		if isinstance(b, monomial):
-			# recursively call monomial + polynomial case
+		# Polynomial + Monomial case
+		if isinstance(b, Monomial):
+			# recursively call Monomial + Polynomial case
 			return b + a
-		# polynomial + polynomial case
-		elif isinstance(b, polynomial):
-			out = polynomial([i for i in a.terms]) # necessary to create a deep copy of a
-			# recursively call monomial + polynomial case
+		# Polynomial + Polynomial case
+		elif isinstance(b, Polynomial):
+			out = Polynomial([i for i in a.terms]) # necessary to create a deep copy of a
+			# recursively call Monomial + Polynomial case
 			for term in b.terms:
 				out = term + out
 			return out
@@ -92,21 +172,33 @@ class polynomial:
 		return a + (-b)
 
 	def __mul__(a, b):
-		return polynomial([i*j for i in a.terms for j in b.terms])
+		return Polynomial([i*j for i in a.terms for j in b.terms])
 
 	def eval(self, x):
 		return sum(a.eval(x) for a in self.terms)
 
-
-a1 = monomial(2, 1) # 2x
-a2 = monomial(-1, 2) # -x^2
-a3 = monomial(1, 2) # x^2
-a5 = monomial(1, 5) # x^5
-
-f = a1 + a2 # -x^2 + 2x
-g = a3 + a5 # x^5 + x^2
-
-h = f - g
-print(h.degree)
-print(str(h))
-print("h(1) =", h.eval(1))
+	def find_real_roots(self):
+		if self.degree == 0: # constant
+			# either the Polynomial has no roots or infinitely many roots
+			return []
+		elif self.degree == 1: # linear
+			return [-(self[0].coeff) / self[1].coeff]
+		elif self.degree == 2: # quadratic
+			delta = (self[1].coeff)**2 - 4 * (self[2].coeff) * (self[0].coeff)
+			if delta < 0:
+				# no real roots
+				return []
+			elif delta == 0:
+				# two identical real roots
+				return 2*[-(self[1].coeff) / self[2].coeff]
+			else:
+				# two different real roots
+				return [(-(self[1].coeff) + delta**(1/2)) / self[2].coeff, 
+						(-(self[1].coeff) - delta**(1/2)) / self[2].coeff].sort()
+		# there are explicit formulae for the roots of a cubic or quartc, but 
+		# they're horrendously long. We'll just use the rational roots theorem 
+		# for degree > 2, even though the explicit formulae are more efficient
+		# for large coefficients.
+		else:
+			return []
+			# TODO: implement rational roots test, using Fraction class
